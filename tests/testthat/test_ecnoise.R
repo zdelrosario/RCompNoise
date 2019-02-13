@@ -1,7 +1,7 @@
 context("ecnoise")
 library(RCompNoise)
 
-## Model problem from More and Wild (2012)
+## Model problem from More' and Wild (2012)
 set.seed(101)
 
 alpha <- 0.01
@@ -9,9 +9,9 @@ alpha <- 0.01
 n_dim  <- 10
 n_fcn  <- 8
 h      <- 1e-6
-n_repl <- 500L
+n_repl <- 1e4
 
-eps_true <- 1e-3
+eps_rel_true <- 1e-3
 
 xb <- rep(1, n_dim)
 
@@ -23,7 +23,7 @@ for (ind in 1:n_repl) {
   p <- 2 * runif(n = n_dim) - 1;
   p <- p / norm(p, type = "2")
   test_fval <- rep(0, n_fcn + 1)
-  test_R    <- eps_true * rnorm(n = n_fcn + 1)
+  test_R    <- eps_rel_true * rnorm(n = n_fcn + 1)
   mid       <- floor((n_fcn + 2) / 2)
 
   for (i in 0:n_fcn) {
@@ -40,14 +40,18 @@ for (ind in 1:n_repl) {
   v_test_result[ind] <- test_res$inform
 }
 
-eps_obs_lo <- quantile(v_test_noise_rel, probs = alpha / 2)
-eps_obs_hi <- quantile(v_test_noise_rel, probs = 1 - alpha / 2)
+## More' and Wild state that they expect ECNoise to be accurate only to within a
+## factor of 4. They report that 1% of cases fail at 8 function evaluations; we
+## will replicate this case, and consider it successful if our 'failure fraction'
+## is less than 1%.
+ratio_rel <- v_test_noise_rel / eps_rel_true
+frac_fail_loose <- 1 - mean( (0.25 <= ratio_rel) & (ratio_rel <= 4) )
 
 test_that(
-  "Noise level accurate on model problem at the 99% level",
+  "ECNoise failure rate compatible with published values.",
   {
     expect_true(
-      (eps_obs_lo <= eps_true) & (eps_true <= eps_obs_hi)
+      frac_fail_loose <= 0.01
     )
   }
 )
